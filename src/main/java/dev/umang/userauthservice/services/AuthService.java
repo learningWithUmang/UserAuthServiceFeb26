@@ -11,6 +11,9 @@ import dev.umang.userauthservice.pojos.UserToken;
 import dev.umang.userauthservice.repositories.RoleRepo;
 import dev.umang.userauthservice.repositories.SessionRepo;
 import dev.umang.userauthservice.repositories.UserRepo;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.MacAlgorithm;
 import org.antlr.v4.runtime.misc.Pair;
@@ -31,6 +34,9 @@ public class AuthService implements IAuthService{
 
     @Autowired
     private SessionRepo sessionRepo;
+
+    @Autowired
+    private SecretKey secretKey;
 
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -122,15 +128,13 @@ public class AuthService implements IAuthService{
             Map<String, Object> payload = new HashMap<>();
             Long nowInMills = System.currentTimeMillis(); // return timestamp in epoch
             payload.put("iat", nowInMills);
-            payload.put("exp", nowInMills + 10000); //100k milli-seconds as expiry time period
+            payload.put("exp", nowInMills + 10000000); //100k milli-seconds as expiry time period
             payload.put("userId" ,user.getId());
             payload.put("iss", "scaler");
             payload.put("scope" , user.getRoles());
             /*
             Payload is generated
              */
-            MacAlgorithm algorithm = Jwts.SIG.HS256;
-            SecretKey secretKey = algorithm.key().build();
 
             String token = Jwts.builder().claims(payload).
                     signWith(secretKey).
@@ -173,6 +177,42 @@ public class AuthService implements IAuthService{
         }else{
             throw new IncorrectPasswordException("Incorrect password entered");
         }
+    }
+
+    @Override
+    public Boolean validateToken(String token) {
+        /*
+        We want to check if this token is in my db or not?
+        in Sessions table
+         */
+        Optional<Session> optionalSession = sessionRepo.findByToken(token);
+
+        if(optionalSession.isEmpty()){
+            return false;
+        }
+
+        JwtParser jwtParser = Jwts.parser().verifyWith(secretKey).build();
+
+        Claims claims = jwtParser.parseSignedClaims(token).getPayload();
+
+        System.out.println(claims);
+
+        /*
+        Extracting the payload from the JWT using a parser which contains the secret key
+
+         */
+
+        Long expiryTime = (Long) claims.get("exp");
+        Long nowInMills = System.currentTimeMillis();
+
+        if(nowInMills > expiryTime){
+            Session session = optionalSession.get();
+            session.setState(State.INACTIVE);
+            sessionRepo.save(session);
+            return false;
+        }
+
+        return true;
     }
     /*
     login should generate a JWT

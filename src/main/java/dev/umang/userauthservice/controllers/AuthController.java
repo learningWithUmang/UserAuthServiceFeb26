@@ -3,6 +3,7 @@ package dev.umang.userauthservice.controllers;
 import dev.umang.userauthservice.dtos.LoginRequestDTO;
 import dev.umang.userauthservice.dtos.SignupRequestDTO;
 import dev.umang.userauthservice.dtos.UserDTO;
+import dev.umang.userauthservice.dtos.ValidateTokenDto;
 import dev.umang.userauthservice.models.User;
 import dev.umang.userauthservice.pojos.UserToken;
 import dev.umang.userauthservice.services.IAuthService;
@@ -113,7 +114,33 @@ public class AuthController {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
             //return null;
         }
+
+        /*
+        Input : Token
+        Output: boolean
+        Type: POST because we will send token in request body
+
+
+         */
+
+
+
+
     }
+    @PostMapping("/validateToken")
+    public ResponseEntity<String> validateToken(@RequestBody ValidateTokenDto validateTokenDto) {
+        Boolean result = authService.validateToken(validateTokenDto.getToken());
+
+        if(result == false) {
+            return new ResponseEntity<>("Please login again, Inconvenience Regretted", HttpStatus.FORBIDDEN);
+            //throw new RuntimeException("Please login again, Inconvenience Regretted");
+        }else{
+            return new ResponseEntity<>("Token is valid", HttpStatus.OK);
+        }
+    }
+
+
+
 
 
     /*
